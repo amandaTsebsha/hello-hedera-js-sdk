@@ -3,64 +3,29 @@ const { Client,
     AccountCreateTransaction, 
     AccountBalanceQuery, 
     Hbar, 
-    TransferTransaction 
+    TransferTransaction, 
+    AccountId
 } = require("@hashgraph/sdk");
 require('dotenv').config();
 
+
 async function environmentSetUp() {
 
-    const myAccountId = process.env.MY_ACCOUNT_ID;
-    const myPrivateKey = process.env.MY_PRIVATE_KEY;
+    const node = {"127.0.0.1:50211": new AccountId(3)};
+    const client = Client.forNetwork(node).setMirrorNetwork("127.0.0.1:5600");
 
+    client.setOperator(AccountId.fromString("0.0.2"), PrivateKey.fromString("302e020100300506032b65700422042091132178e72057a1d7528025956fe39b0b847f200ab59b2fdd367017f3087137"));
 
-    if (!myAccountId || !myPrivateKey) {
-        throw new Error("Environment variables MY_ACCOUNT_ID and MY_PRIVATE_KEY must be present");
-
-    }
-
-
-    //Create Hedera Testnet client
-    const client = Client.forTestnet();
-
-    //Set my account as client operator
-    client.setOperator(myAccountId, myPrivateKey);
-
-    //Set default max transaction fee(in Hbar)
-    client.setDefaultMaxTransactionFee(new Hbar(100));
-
-    //Set the max payment query(in Hbar)
-    client.setDefaultMaxQueryPayment(new Hbar(50));
-
-    const newAccountPrivateKey = PrivateKey.generateED25519();
-    const newAccountPublicKey = newAccountPrivateKey.publicKey;
 
     const newAccount = await new AccountCreateTransaction()
-        .setKey(newAccountPublicKey)
-        .setInitialBalance(Hbar.fromTinybars(1000))
+        .setKey(PrivateKey.fromString("302e020100300506032b65700422042091132178e72057a1d7528025956fe39b0b847f200ab59b2fdd367017f3087137"))
+        .setInitialBalance(new Hbar(1))
         .execute(client);
 
     const receipt = await newAccount.getReceipt(client);
+
     const newAccountId = receipt.accountId;
-    console.log("The new account ID is: " +newAccountId);
+    console.log("New account created with ID:", newAccountId.toString());
 
-    const accountBalance = await new AccountBalanceQuery()
-        .setAccountId(newAccountId)
-        .execute(client);
 
-        console.log("The new account balance is: " +accountBalance.hbars.toTinybars() +" tinybar.");
-
-        const sendHbar = await new TransferTransaction()
-            .addHbarTransfer(myAccountId, Hbar.fromTinybars(-1000))
-            .addHbarTransfer(newAccountId, Hbar.fromTinybars(1000))
-            .execute(client);
-
-        const transactionReceipt = await sendHbar.getReceipt(client);
-        console.log("The transfer transaction from my account to the new account was: " + transactionReceipt.status.toString());
-        
 }
-
-environmentSetUp();
-
-
-
-
